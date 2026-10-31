@@ -1,0 +1,41 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "cultura"
+version = "0.1.0"
+description = "CULTURA: Autonomous Cultural Intelligence & Taste Graph Agent (Qloo Hackathon)"
+readme = "README.md"
+authors = [
+    { name = "R Jan Steve Daniel", email = "jansteve@users.noreply.github.com" }
+]
+license = { text = "Apache-2.0" }
+requires-python = ">=3.10"
+dependencies = [
+    "httpx>=0.28.0",
+    "pydantic>=2.10.0",
+    "typer>=0.15.0",
+    "rich>=13.0.0",
+    "jinja2>=3.1.0",
+]
+
+[project.optional-dependencies]
+web = [
+    "streamlit>=1.40.0",
+]
+test = [
+    "pytest>=8.0.0",
+    "pytest-asyncio>=0.24.0",
+]
+
+[project.scripts]
+cultura = "cultura.cli.main:app"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+asyncio_mode = "auto"
