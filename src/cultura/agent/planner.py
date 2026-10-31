@@ -12,7 +12,10 @@ import logging
 import math
 from datetime import datetime, timezone
 from enum import Enum
-from typing import Any, Dict, List, Optional, Set, Tuple, Union
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Set, Tuple, Union
+
+if TYPE_CHECKING:
+    from cultura.client.qloo import QlooClient
 
 from cultura.agent.tools import (
     AffinityScore,
@@ -25,7 +28,6 @@ from cultura.agent.tools import (
     haversine_transit_minutes,
 )
 from cultura.client.mock_data import calculate_affinity
-from cultura.client.qloo import QlooClient, QlooInvalidHubError
 
 logger = logging.getLogger("cultura.agent.planner")
 
@@ -382,7 +384,12 @@ class ReActPlanner:
         max_backtracks: int = 50,
         speed_kmh: float = 25.0,
     ) -> None:
-        self.client = client or QlooClient()
+        if client is None:
+            from cultura.client.qloo import QlooClient
+
+            self.client = QlooClient()
+        else:
+            self.client = client
         self.max_transit_minutes = max_transit_minutes
         self.max_backtracks = max_backtracks
         self.speed_kmh = speed_kmh
