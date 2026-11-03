@@ -245,7 +245,7 @@ class TestAcceptanceR1QlooClientAndMockData:
             assert len(affinities1) == len(affinities2)
             for a1, a2 in zip(affinities1, affinities2):
                 assert a1.target_entity.id == a2.target_entity.id
-                assert a1.affinity_score == a2.affinity_score
+                assert a1.score == a2.score
                 assert a1.confidence == a2.confidence
                 assert a1.rationale == a2.rationale
 
@@ -285,7 +285,6 @@ class TestAcceptanceR2SchemasAndReActPlanner:
             address="Berlin, Germany",
             tags=["modernist", "minimalist"],
             price_tier=2,
-            popularity=0.85,
         )
         assert entity.coordinates.latitude == 52.52
         assert entity.coordinates.longitude == 13.40
@@ -299,7 +298,6 @@ class TestAcceptanceR2SchemasAndReActPlanner:
             rationale="Shared brutalist aesthetic.",
         )
         assert aff.score == 0.92
-        assert aff.affinity_score == 0.92
         assert aff.target_domain == CulturalDomain.ARTS
 
         with pytest.raises(Exception):
