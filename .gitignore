@@ -44,3 +44,7 @@ Thumbs.db
 
 # Agent swarm internal state & logs
 .agents/
+
+# Generated exports and demo plans
+plans/
+demo_plans/

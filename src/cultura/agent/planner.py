@@ -853,3 +853,7 @@ class ReActPlanner:
             f"Spanning {len(domains)} distinct cultural domains ({', '.join(domains)}) across 8 diurnal slots, "
             f"balancing atmospheric resonance with seamless spatial progression."
         )
+
+    # Backward compatibility alias
+    plan = plan_48h
+

@@ -269,6 +269,13 @@ class CulturalEntity(BaseModel):
         return self.latitude
 
     @property
+    def coordinates(self) -> Any:
+        """Convenience property returning a coordinate object with latitude and longitude."""
+        from types import SimpleNamespace
+        return SimpleNamespace(latitude=self.latitude, longitude=self.longitude)
+
+
+    @property
     def lon(self) -> float:
         """Convenience property alias for longitude."""
         return self.longitude
@@ -417,6 +424,10 @@ class ItineraryItem(BaseModel):
         return self.curator_notes
 
     @property
+    def why_recommended(self) -> str:
+        return self.curator_notes or f"Resonates with {self.entity.domain.value} cultural anchors."
+
+    @property
     def start_time(self) -> str:
         return self.time_window.split(" - ")[0] if " - " in self.time_window else ""
 
@@ -559,6 +570,156 @@ class ItineraryPlan(BaseModel):
     @property
     def coherence_score(self) -> float:
         return self.cultural_coherence_score
+
+    @property
+    def schedule(self) -> List[ItineraryItem]:
+        return self.items
+
+    @property
+    def react_trace(self) -> List[Any]:
+        return self.metadata.get("react_trace", [])
+
+    def to_geojson(self) -> Dict[str, Any]:
+        """Export itinerary activities to RFC 7946 GeoJSON FeatureCollection."""
+        features: List[Dict[str, Any]] = []
+        for item in self.items:
+            geom = {
+                "type": "Point",
+                "coordinates": [item.entity.coordinates.longitude, item.entity.coordinates.latitude],
+            }
+            features.append(
+                {
+                    "type": "Feature",
+                    "geometry": geom,
+                    "properties": {
+                        "day": item.day,
+                        "slot": item.slot.value if hasattr(item.slot, "value") else str(item.slot),
+                        "time_window": item.time_window,
+                        "venue_name": item.entity.name,
+                        "domain": item.entity.domain.value if hasattr(item.entity.domain, "value") else str(item.entity.domain),
+                        "affinity_score": item.affinity_score,
+                        "address": item.entity.address,
+                        "tags": item.entity.tags,
+                        "why_recommended": item.why_recommended,
+                        "curator_notes": item.curator_notes,
+                        "transit_from_previous_min": item.transit_from_previous_min,
+                    },
+                }
+            )
+        return {
+            "type": "FeatureCollection",
+            "properties": {
+                "city_hub": self.city_hub,
+                "cultural_coherence_score": self.cultural_coherence_score,
+                "domain_diversity_score": self.domain_diversity_score,
+                "transit_efficiency_score": self.transit_efficiency_score,
+                "total_items": len(self.items),
+                "generated_at": self.generated_at,
+            },
+            "features": features,
+        }
+
+    def to_markdown(self) -> str:
+        """Export itinerary to an aesthetic Markdown travel guide."""
+        lines = [
+            f"# 📍 CULTURA Curated Cultural Experience: {self.city_hub.title()}",
+            "",
+            f"> **Cultural Coherence:** {self.cultural_coherence_score * 100:.1f}% | "
+            f"**Domain Diversity:** {self.domain_diversity_score * 100:.1f}% | "
+            f"**Transit Efficiency:** {self.transit_efficiency_score * 100:.1f}%",
+            "",
+            "## 🎯 Taste Seeds Grounding",
+            "",
+        ]
+        for s in self.taste_seeds:
+            dom = s.domain.value if hasattr(s.domain, "value") else str(s.domain)
+            lines.append(f"- **{s.name}** ({dom.upper()}) [Weight: {s.weight:.2f}]")
+
+        lines.extend(["", "---", "", "## 🗓️ 48-Hour Diurnal Schedule", ""])
+
+        cur_day = 0
+        for item in self.items:
+            if item.day != cur_day:
+                cur_day = item.day
+                lines.extend([f"### ☀️ Day {cur_day}", ""])
+
+            slot_str = item.slot.value.title() if hasattr(item.slot, "value") else str(item.slot).title()
+            dom_str = item.entity.domain.value.upper() if hasattr(item.entity.domain, "value") else str(item.entity.domain).upper()
+            coords = item.entity.coordinates
+            maps_url = f"https://www.google.com/maps/search/?api=1&query={coords.latitude},{coords.longitude}"
+
+            lines.extend([
+                f"#### {slot_str} ({item.time_window}): {item.entity.name} [{dom_str}] — {int(item.affinity_score * 100)}% match",
+                f"- **Address:** [{item.entity.address}]({maps_url})",
+                f"- **Why Qloo Matched:** *{item.why_recommended}*",
+                f"- **Curator Notes:** {item.curator_notes or 'Curated cultural anchor.'}",
+                f"- **Vibe Tags:** `{'`, `'.join(item.entity.tags)}`",
+                f"- **Transit from Previous:** {item.transit_from_previous_min} min",
+                "",
+            ])
+
+        return "\n".join(lines)
+
+    def to_ical(self) -> str:
+        """Export itinerary to RFC 5545 iCalendar standard format."""
+        slot_hours = {
+            TimeSlot.MORNING: ("090000", "123000"),
+            TimeSlot.AFTERNOON: ("130000", "170000"),
+            TimeSlot.EVENING: ("173000", "213000"),
+            TimeSlot.NIGHT: ("220000", "010000"),
+        }
+        lines = [
+            "BEGIN:VCALENDAR",
+            "VERSION:2.0",
+            "PRODID:-//CULTURA//Cultural Intelligence Itinerary Planner//EN",
+            "CALSCALE:GREGORIAN",
+            "METHOD:PUBLISH",
+            f"X-WR-CALNAME:CULTURA Curated Journey - {self.city_hub.title()}",
+        ]
+
+        now_str = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+        base_date = datetime.now(timezone.utc).date()
+
+        for idx, item in enumerate(self.items):
+            day_offset = item.day - 1
+            from datetime import timedelta
+            ev_date = base_date + timedelta(days=day_offset)
+            date_str = ev_date.strftime("%Y%m%d")
+
+            st_hour, end_hour = slot_hours.get(item.slot, ("100000", "120000"))
+            dtstart = f"{date_str}T{st_hour}"
+
+            if item.slot == TimeSlot.NIGHT:
+                next_date = (ev_date + timedelta(days=1)).strftime("%Y%m%d")
+                dtend = f"{next_date}T{end_hour}"
+            else:
+                dtend = f"{date_str}T{end_hour}"
+
+            uid = f"cultura-{self.city_hub}-d{item.day}-s{idx}-{abs(hash(item.entity.id))}@cultura.ai"
+            summary = f"{item.entity.name} — {item.slot.value.title()}"
+            dom_val = item.entity.domain.value if hasattr(item.entity.domain, "value") else str(item.entity.domain)
+
+            desc = f"Domain: {dom_val.upper()}\\nWhy Matched: {item.why_recommended}\\nTags: {', '.join(item.entity.tags)}"
+            loc = f"{item.entity.name}, {item.entity.address}"
+            geo = f"{item.entity.coordinates.latitude:.6f};{item.entity.coordinates.longitude:.6f}"
+
+            lines.extend([
+                "BEGIN:VEVENT",
+                f"UID:{uid}",
+                f"DTSTAMP:{now_str}",
+                f"DTSTART:{dtstart}",
+                f"DTEND:{dtend}",
+                f"SUMMARY:{summary}",
+                f"DESCRIPTION:{desc}",
+                f"LOCATION:{loc}",
+                f"GEO:{geo}",
+                f"CATEGORIES:{dom_val.upper()}",
+                "STATUS:CONFIRMED",
+                "END:VEVENT",
+            ])
+
+        lines.append("END:VCALENDAR")
+        return "\r\n".join(lines) + "\r\n"
 
 
 # ============================================================================
