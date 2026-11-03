@@ -357,3 +357,23 @@ def test_standalone_exporters_unit(tmp_path: Path) -> None:
     assert len(export_dict) == 4
     for ext, path in export_dict.items():
         assert os.path.exists(path)
+
+
+# ============================================================================
+# 6. Search Command & Limit Validation Tests
+# ============================================================================
+
+def test_cli_search_and_limit_validation(runner: CliRunner) -> None:
+    """Verifies search command and limit <= 0 validation."""
+    # Successful search
+    res = runner.invoke(app, ["search", "Jazz", "--limit", "3"])
+    assert res.exit_code == 0
+    assert "Jazz" in res.output or "Domain" in res.output
+
+    # Invalid negative or zero limit
+    for bad_limit in ["0", "-1"]:
+        res_bad = runner.invoke(app, ["search", "Jazz", "--limit", bad_limit])
+        assert res_bad.exit_code in (1, 2)
+        assert "--limit must be greater than 0" in res_bad.output
+        assert "Traceback (most recent call last)" not in res_bad.output
+
