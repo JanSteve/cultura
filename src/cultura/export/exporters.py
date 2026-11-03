@@ -106,12 +106,12 @@ def export_ics(plan: ItineraryPlan, output_path: Optional[Union[str, Path]] = No
         ])
 
     lines.append("END:VCALENDAR")
-    ics_content = "\n".join(lines) + "\n"
+    ics_content = "\r\n".join(lines) + "\r\n"
 
     if output_path:
         out_p = Path(output_path)
         out_p.parent.mkdir(parents=True, exist_ok=True)
-        with open(out_p, "w", encoding="utf-8") as f:
+        with open(out_p, "w", encoding="utf-8", newline="") as f:
             f.write(ics_content)
 
     return ics_content

@@ -191,7 +191,7 @@ def search(
     from cultura.client.qloo import QlooClient
 
     if limit <= 0:
-        console.print(f"[bold red]Error:[/bold red] Limit must be a positive integer, got {limit}.")
+        console.print("[bold red]Error:[/bold red] --limit must be greater than 0.")
         raise typer.Exit(code=1)
 
     dom_enum = None
@@ -254,7 +254,20 @@ def plan(
         )
         raise typer.Exit(code=1)
 
-    # 3. Lazy Load Heavy Modules (Preserves doctor <100ms SLA)
+    # 3. Early Export Format Validation
+    if export:
+        allowed_formats = {"ics", "md", "markdown", "geojson", "json"}
+        for fmt in export:
+            clean_fmt = fmt.strip().lstrip(".").lower()
+            if clean_fmt not in allowed_formats:
+                console.print(
+                    f"[bold red]Error:[/bold red] Unsupported export format '{fmt}'. "
+                    "Supported formats are: ics, md, geojson, json"
+                )
+                raise typer.Exit(code=1)
+
+    # 4. Lazy Load Heavy Modules (Preserves doctor <100ms SLA)
+    from pydantic import ValidationError
     from cultura.agent.planner import ReActPlanner
     from cultura.agent.tools import CulturalDomain, TasteSeed
     from cultura.export import export_itinerary
@@ -290,7 +303,7 @@ def plan(
             domain_part = parts[1].strip()
             if not name_part:
                 console.print(
-                    f"[bold red]Error:[/bold red] Malformed seed '{raw_seed}': entity name cannot be empty."
+                    f"[bold red]Error:[/bold red] Invalid seed '{raw_seed}': seed name cannot be empty."
                 )
                 raise typer.Exit(code=1)
             try:
@@ -299,8 +312,11 @@ def plan(
                 dom_enum = CulturalDomain.DINING
             try:
                 taste_seeds.append(TasteSeed(name=name_part, domain=dom_enum, weight=1.0))
+            except ValidationError as exc:
+                console.print(f"[bold red]Error:[/bold red] Invalid seed '{raw_seed}': {exc}")
+                raise typer.Exit(code=1)
             except Exception as exc:
-                console.print(f"[bold red]Error:[/bold red] Invalid taste seed '{raw_seed}': {exc}")
+                console.print(f"[bold red]Error:[/bold red] Invalid seed '{raw_seed}': {exc}")
                 raise typer.Exit(code=1)
         else:
             name_lower = raw_seed.lower()
@@ -311,8 +327,11 @@ def plan(
                     break
             try:
                 taste_seeds.append(TasteSeed(name=raw_seed, domain=matched_dom, weight=1.0))
+            except ValidationError as exc:
+                console.print(f"[bold red]Error:[/bold red] Invalid seed '{raw_seed}': {exc}")
+                raise typer.Exit(code=1)
             except Exception as exc:
-                console.print(f"[bold red]Error:[/bold red] Invalid taste seed '{raw_seed}': {exc}")
+                console.print(f"[bold red]Error:[/bold red] Invalid seed '{raw_seed}': {exc}")
                 raise typer.Exit(code=1)
 
     if not taste_seeds:

@@ -361,15 +361,28 @@ def main() -> None:
 
     parsed_seeds: List[TasteSeed] = []
     for s_str in raw_seed_strings:
-        if ":" in s_str:
-            p = s_str.split(":", 1)
+        s_clean = s_str.strip()
+        if not s_clean:
+            continue
+        if ":" in s_clean:
+            p = s_clean.split(":", 1)
+            name_part = p[0].strip()
+            domain_part = p[1].strip()
+            if not name_part:
+                continue
             try:
-                dom = CulturalDomain.normalize(p[1].strip())
+                dom = CulturalDomain.normalize(domain_part)
             except ValueError:
                 dom = CulturalDomain.DINING
-            parsed_seeds.append(TasteSeed(name=p[0].strip(), domain=dom, weight=1.0))
+            try:
+                parsed_seeds.append(TasteSeed(name=name_part, domain=dom, weight=1.0))
+            except Exception:
+                continue
         else:
-            parsed_seeds.append(TasteSeed(name=s_str.strip(), domain=CulturalDomain.DINING, weight=1.0))
+            try:
+                parsed_seeds.append(TasteSeed(name=s_clean, domain=CulturalDomain.DINING, weight=1.0))
+            except Exception:
+                continue
 
     if not parsed_seeds:
         parsed_seeds = [TasteSeed(name="Third Wave Coffee", domain=CulturalDomain.DINING, weight=1.0)]

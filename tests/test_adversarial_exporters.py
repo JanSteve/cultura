@@ -226,7 +226,8 @@ class TestIcsExporterAdversarial(unittest.IsolatedAsyncioTestCase):
             target = Path(td) / "nested" / "dir" / "itinerary.ics"
             ret_str = export_ics(plan, output_path=target)
             self.assertTrue(target.exists())
-            self.assertEqual(target.read_text(encoding="utf-8"), ret_str)
+            self.assertIn("\r\n", ret_str)
+            self.assertEqual(target.read_bytes().decode("utf-8"), ret_str)
 
 
 # ============================================================================

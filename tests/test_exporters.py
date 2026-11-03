@@ -49,9 +49,10 @@ def test_export_ics(sample_plan, tmp_path: Path):
     assert ics_str.count("BEGIN:VEVENT") == 8
     assert ics_str.count("END:VEVENT") == 8
 
-    # Verify file written matches returned content
+    # Verify file written matches returned content with RFC 5545 CRLF endings
+    assert "\r\n" in ics_str
     assert out_file.exists()
-    assert out_file.read_text(encoding="utf-8") == ics_str
+    assert out_file.read_bytes().decode("utf-8") == ics_str
 
 
 def test_export_markdown(sample_plan, tmp_path: Path):

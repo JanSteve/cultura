@@ -218,24 +218,26 @@ def test_plan_empty_and_whitespace_only_seed_handling(runner: CliRunner) -> None
 def test_plan_malformed_seed_colon_adversarial(runner: CliRunner) -> None:
     """
     Adversarial Challenge: Malformed seed with colon delimiter and empty name:
-    e.g. -s "::dining" or -s ":"
+    e.g. -s "::dining" or -s ":" or -s ":music"
     Verifies clean error handling without unhandled tracebacks or uncaught exceptions.
     """
-    proc = subprocess.run(
-        [sys.executable, "-m", "cultura.cli.main", "plan", "--hub", "Bangalore", "-s", "::dining"],
-        capture_output=True,
-        text=True,
-    )
-    # Checks whether real CLI invocation leaks an unhandled traceback to stderr or stdout
-    has_traceback = (
-        "Traceback (most recent call last)" in proc.stderr
-        or "Traceback (most recent call last)" in proc.stdout
-    )
-    assert proc.returncode in (1, 2)
-    assert not has_traceback, (
-        f"CLI Robustness Violation: '-s \"::dining\"' produced an unhandled traceback:\n"
-        f"STDOUT:\n{proc.stdout}\nSTDERR:\n{proc.stderr}"
-    )
+    for bad_seed in ["::dining", ":", ":music"]:
+        proc = subprocess.run(
+            [sys.executable, "-m", "cultura.cli.main", "plan", "--hub", "Bangalore", "-s", bad_seed],
+            capture_output=True,
+            text=True,
+        )
+        has_traceback = (
+            "Traceback (most recent call last)" in proc.stderr
+            or "Traceback (most recent call last)" in proc.stdout
+        )
+        assert proc.returncode in (1, 2)
+        assert not has_traceback, (
+            f"CLI Robustness Violation: '-s \"{bad_seed}\"' produced an unhandled traceback:\n"
+            f"STDOUT:\n{proc.stdout}\nSTDERR:\n{proc.stderr}"
+        )
+        combined_output = proc.stdout + proc.stderr
+        assert "seed name cannot be empty" in combined_output
 
 
 def test_plan_invalid_export_format_adversarial(runner: CliRunner) -> None:
@@ -268,3 +270,5 @@ def test_plan_invalid_export_format_adversarial(runner: CliRunner) -> None:
         f"CLI Robustness Violation: '--export invalid_format' produced an unhandled traceback:\n"
         f"STDOUT:\n{proc.stdout}\nSTDERR:\n{proc.stderr}"
     )
+    combined_output = proc.stdout + proc.stderr
+    assert "Unsupported export format" in combined_output
