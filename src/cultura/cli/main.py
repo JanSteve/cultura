@@ -190,6 +190,10 @@ def search(
     from cultura.agent.tools import CulturalDomain
     from cultura.client.qloo import QlooClient
 
+    if limit <= 0:
+        console.print(f"[bold red]Error:[/bold red] Limit must be a positive integer, got {limit}.")
+        raise typer.Exit(code=1)
+
     dom_enum = None
     if domain:
         try:
