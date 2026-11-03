@@ -284,20 +284,32 @@ def plan(
             parts = raw_seed.split(":", 1)
             name_part = parts[0].strip()
             domain_part = parts[1].strip()
+            if not name_part:
+                console.print(
+                    f"[bold red]Error:[/bold red] Malformed seed '{raw_seed}': entity name cannot be empty."
+                )
+                raise typer.Exit(code=1)
             try:
                 dom_enum = CulturalDomain.normalize(domain_part)
             except ValueError:
                 dom_enum = CulturalDomain.DINING
-            taste_seeds.append(TasteSeed(name=name_part, domain=dom_enum, weight=1.0))
+            try:
+                taste_seeds.append(TasteSeed(name=name_part, domain=dom_enum, weight=1.0))
+            except Exception as exc:
+                console.print(f"[bold red]Error:[/bold red] Invalid taste seed '{raw_seed}': {exc}")
+                raise typer.Exit(code=1)
         else:
-            # Domain inference from catalog or default
             name_lower = raw_seed.lower()
             matched_dom = CulturalDomain.DINING
             for e in MOCK_ENTITIES:
                 if e.name.lower() in name_lower or name_lower in e.name.lower():
                     matched_dom = e.domain
                     break
-            taste_seeds.append(TasteSeed(name=raw_seed, domain=matched_dom, weight=1.0))
+            try:
+                taste_seeds.append(TasteSeed(name=raw_seed, domain=matched_dom, weight=1.0))
+            except Exception as exc:
+                console.print(f"[bold red]Error:[/bold red] Invalid taste seed '{raw_seed}': {exc}")
+                raise typer.Exit(code=1)
 
     if not taste_seeds:
         console.print("[bold red]Error:[/bold red] No valid taste seeds could be parsed.")
@@ -410,7 +422,14 @@ def plan(
     # Multi-Format Export Processing
     if export:
         out_path = Path(output_dir)
-        exported = export_itinerary(plan=plan, export_formats=export, output_dir=out_path)
+        try:
+            exported = export_itinerary(plan=plan, export_formats=export, output_dir=out_path)
+        except ValueError as exc:
+            console.print(f"[bold red]Export Error:[/bold red] {exc}")
+            raise typer.Exit(code=1)
+        except Exception as exc:
+            console.print(f"[bold red]Export Error:[/bold red] Failed to export itinerary: {exc}")
+            raise typer.Exit(code=1)
 
         export_table = Table(
             title="[bold green]Generated Itinerary Export Files[/bold green]",
